@@ -12,13 +12,21 @@
          PASSWORD,
          EMAIL,
          ADDR1,
-         ADDR2)
-        VALUES (#{user_id},
+         ADDR2,
+         REG_ID,
+         REG_DT,
+         CHG_ID,
+         CHG_DT)
+        VALUES (#{user_id},6
                 #{user_name},
                 #{password},
                 #{email},
                 #{addr1},
-                #{addr2})
+                #{addr2},
+                #{user_id},
+                SYSDATE(),
+                #{user_id},
+                SYSDATE())
     </insert>
 
     <!-- 로그인을 위해 아이디와 비밀번호가 일치하는지 확인하기 -->

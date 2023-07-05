@@ -25,4 +25,9 @@ public class MainController {
         log.info(this.getClass().getName() + ".good Start!");
         return "/test";
     }
+    @GetMapping("/notice")
+    public String notice() throws Exception {
+        log.info(this.getClass().getName() + ".good Start!");
+        return "/notice";
+    }
 }

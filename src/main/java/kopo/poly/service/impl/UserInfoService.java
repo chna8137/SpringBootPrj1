@@ -18,7 +18,6 @@ import java.util.Optional;
 public class UserInfoService implements IUserInfoService {
 
     private final IUserInfoMapper userInfoMapper;
-
     @Override
     public int insertUserInfo(UserInfoDTO pDTO) throws Exception {
 

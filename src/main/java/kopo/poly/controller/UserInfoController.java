@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -26,20 +27,23 @@ public class UserInfoController {
     /**
      * 회원가입 화면으로 이동
      */
-    @GetMapping("/user/userRegForm")
-    public String userRegForm() throws Exception {
-        log.info(this.getClass().getName() + ".userRegForm Start!");
+    @GetMapping(value = "/user/userRegForm")
+    public String userRegForm() {
+        log.info(this.getClass().getName() + ".user/userRegForm Start!");
+
         return "/user/userRegForm";
     }
 
     /**
      * 회원가입 로직 처리
      */
-    @PostMapping("/user/userRegProc")
-    public String userRegProc(HttpServletRequest request, ModelMap model) throws Exception {
+    @PostMapping(value = "/user/insertUserInfo")
+    public String insertUserInfo(HttpServletRequest request, ModelMap modelMap) throws Exception {
 
+        log.info(this.getClass().getName() + ".insertUserInfo start!");
+        int res;
         String msg = ""; //회원가입 결과에 대한 메시지를 전달할 변수
-        String url = "/user/userRegForm"; //이동할 url을 전달할 변수
+        String url = ""; //이동할 url을 전달할 변수
 
         //웹(회원정보 입력화면)에서 받는 정보를 저장할 변수
         UserInfoDTO pDTO = null;
@@ -53,8 +57,8 @@ public class UserInfoController {
              *    무조건 웹으로 받은 정보는 DTO에 저장하기 위해 임시로 String 변수에 저장함
              * #######################################################
              */
-            String userId = CmmUtil.nvl(request.getParameter("userId")); //아이디
-            String userName = CmmUtil.nvl(request.getParameter("userName")); //이름
+            String userId = CmmUtil.nvl(request.getParameter("user_id")); //아이디
+            String userName = CmmUtil.nvl(request.getParameter("user_name")); //이름
             String password = CmmUtil.nvl(request.getParameter("password")); //비밀번호
             String email = CmmUtil.nvl(request.getParameter("email")); //이메일
             String addr1 = CmmUtil.nvl(request.getParameter("addr1")); //주소
@@ -96,7 +100,7 @@ public class UserInfoController {
 
             pDTO.setPassword(EncryptUtil.encHashSHA256(password));
 
-            pDTO.setEmail(email);
+            pDTO.setEmail(EncryptUtil.encAES128CBC(email));
             pDTO.setAddr1(addr1);
             pDTO.setAddr2(addr2);
 
@@ -111,13 +115,13 @@ public class UserInfoController {
             /*
              * 회원가입
              * */
-            int res = userInfoService.insertUserInfo(pDTO);
+            res = userInfoService.insertUserInfo(pDTO);
 
             log.info("회원가입 결과(res) : " + res);
 
             if (res == 1) {
                 msg = "회원가입되었습니다.";
-                url = "/main";
+                //url = "/main";
                 //추후 회원가입 입력화면에서 ajax를 활용해서 아이디 중복, 이메일 중복을 체크하길 바람
             } else if (res == 2) {
                 msg = "이미 가입된 아이디입니다.";
@@ -136,8 +140,8 @@ public class UserInfoController {
 
         } finally {
             // 결과 메시지 전달하기
-            model.addAttribute("msg", msg);
-            model.addAttribute("url", url);
+            modelMap.addAttribute("msg", msg);
+            modelMap.addAttribute("url", url);
 
             log.info(this.getClass().getName() + ".insertUserInfo End!");
         }
@@ -148,34 +152,36 @@ public class UserInfoController {
     /**
      * 로그인을 위한 입력 화면으로 이동
      */
-    @GetMapping(value = "/user/userLoginForm")
+    @GetMapping(value = "/user/login")
     public String login() {
-        log.info(this.getClass().getName() + ".userLoginForm Start!");
-        return "/user/userLoginForm";
+        log.info(this.getClass().getName() + ".userLogin Start!");
+        log.info(this.getClass().getName() + ".user/login End!");
+        return "/user/login";
     }
 
 
-    @PostMapping("/user/userLoginProc")
-    public String userLoginProc(HttpServletRequest request, ModelMap model) throws Exception {
-        log.info(this.getClass().getName() + ".userLoginProc Start!");
+    @PostMapping(value = "/user/loginProc")
+    public String LoginProc(HttpServletRequest request, ModelMap model, HttpSession session) {
+        log.info(this.getClass().getName() + ".LoginProc Start!");
 
-        String msg=""; //로그인 결과 메시지를 저장 및 전달할 변수 (로그인 성공 : 1, 아이디, 비밀번호 불일치로인한 실패 : 0, 시스템 에러 : 2)
+        String msg = ""; //로그인 결과에 대한 메시지를 전달할 변수
+        String url = ""; //웹(회원정보 입력화면)에서 받는 정보를 저장할 변수
 
         //웹(회원정보 입력화면)에서 받는 정보를 저장할 변수
         UserInfoDTO pDTO = null;
 
         try {
 
-            String userId = CmmUtil.nvl(request.getParameter("userId")); //아이디
+            String user_id = CmmUtil.nvl(request.getParameter("user_id")); //아이디
             String password = CmmUtil.nvl(request.getParameter("password")); //비밀번호
 
-            log.info("userId : " + userId);
+            log.info("user_id : " + user_id);
             log.info("password : " + password);
 
             //웹(회원정보 입력화면)에서 받는 정보를 저장할 변수를 메모리에 올리기
             pDTO = new UserInfoDTO();
 
-            pDTO.setUser_id(userId);
+            pDTO.setUser_id(user_id);
 
             //비밀번호는 절대로 복호화되지 않도록 해시 알고리즘으로 암호화함
             pDTO.setPassword(EncryptUtil.encHashSHA256(password));
@@ -184,30 +190,27 @@ public class UserInfoController {
             UserInfoDTO rDTO = userInfoService.getLogin(pDTO);
 
             /*
-             * 로그인을 성공했다면, 회원 정보를 modelmap 객체에 저장함
+             * 로그인을 성공했다면, 회원 정보를 session 객체에 저장함
              * */
             if (CmmUtil.nvl(rDTO.getUser_id()).length() > 0) { //로그인 성공
-                msg = "로그인이 성공했습니다.";
-                model.addAttribute("userName", rDTO.getUser_name());
 
-            } else {
-                msg = "아이디와 비밀번호가 올바르지 않습니다.";
+                session.setAttribute("SS_USER_ID", user_id);
+                session.setAttribute("SS_USER_NAME", CmmUtil.nvl(rDTO.getUser_name()));
+
+                msg = "로그인이 성공했습니다. \n" + rDTO.getUser_name() + "님 환영합니다.";
+                url = "/notice/noticeList";
             }
-
         } catch (Exception e) {
-            //저장이 실패되면 사용자에게 보여줄 메시지
+            // 저장이 실패되면 사용자에게 보여줄 메시지
             msg = "시스템 문제로 로그인이 실패했습니다.";
             log.info(e.toString());
             e.printStackTrace();
-
         } finally {
             model.addAttribute("msg", msg);
+            model.addAttribute("url", url);
+
             log.info(this.getClass().getName() + ".loginProc End!");
         }
-
-        log.info(this.getClass().getName() + ".userLoginProc End!");
-        return "/main";
+        return "/redirect";
     }
-
-
 }
